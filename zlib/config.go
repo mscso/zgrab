@@ -102,6 +102,9 @@ type Config struct {
 	// DNS
 	LookupDomain bool
 
+	// Input format JSON
+	JSONInput bool
+
 	// Encoding
 	Encoding string
 

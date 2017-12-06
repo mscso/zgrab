@@ -66,6 +66,7 @@ func init() {
 	flag.StringVar(&metadataFileName, "metadata-file", "-", "File to record banner-grab metadata, use - for stdout")
 	flag.StringVar(&logFileName, "log-file", "-", "File to log to, use - for stderr")
 	flag.BoolVar(&config.LookupDomain, "lookup-domain", false, "Input contains only domain names")
+	flag.BoolVar(&config.JSONInput, "json-input", false, "Input format is JSON lines")
 	flag.StringVar(&interfaceName, "interface", "", "Network interface to send on")
 	flag.UintVar(&portFlag, "port", 80, "Port to grab on")
 	flag.UintVar(&timeout, "timeout", 10, "Set connection timeout in seconds")
@@ -347,7 +348,15 @@ func init() {
 
 func main() {
 	runtime.GOMAXPROCS(config.GOMAXPROCS)
-	decoder := zlib.NewGrabTargetDecoder(inputFile, config.LookupDomain)
+	decoderMode := "default"
+
+	if config.LookupDomain {
+		decoderMode = "domainOnly"
+	} else if config.JSONInput {
+		decoderMode = "json"
+	}
+
+	decoder := zlib.NewGrabTargetDecoder(inputFile, decoderMode)
 	marshaler := zlib.NewGrabMarshaler()
 	worker := zlib.NewGrabWorker(&config)
 	start := time.Now()

@@ -74,8 +74,14 @@ func (g *Grab) MarshalJSON() ([]byte, error) {
 		s := g.Error.Error()
 		errString = &s
 	}
+
+	ips := ""
+	if g.IP != nil {
+		ips = g.IP.String()
+	}
+
 	obj := encodedGrab{
-		IP:             g.IP.String(),
+		IP:             ips,
 		Domain:         g.Domain,
 		Time:           time,
 		Data:           &g.Data,

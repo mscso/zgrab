@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/csv"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -42,6 +43,7 @@ import (
 type GrabTarget struct {
 	Addr   net.IP
 	Domain string
+	URL string
 }
 
 type grabTargetDecoder struct {
@@ -87,12 +89,41 @@ func (gdd *grabDomainDecoder) DecodeNext() (interface{}, error) {
 	return target, nil
 }
 
-func NewGrabTargetDecoder(reader io.Reader, domainOnly bool) processing.Decoder {
+type JSONgrabTargetDecoder struct {
+	reader *bufio.Reader
+}
 
-	if domainOnly {
+func (gtd *JSONgrabTargetDecoder) DecodeNext() (interface{}, error) {
+	line, err := gtd.reader.ReadBytes('\n')
+	if err != nil {
+		return nil, err
+	}
+
+	var target GrabTarget
+
+	if err := json.Unmarshal(line, &target); err != nil {
+		return nil, err
+	}
+
+	if target.Addr == nil && target.Domain == "" && target.URL == "" {
+		return nil, fmt.Errorf("Invalid JSON target %s", line)
+	}
+
+	return target, nil
+}
+
+func NewGrabTargetDecoder(reader io.Reader, mode string) processing.Decoder {
+
+	if mode == "domainOnly" {
 		domainReader := bufio.NewReader(reader)
 		d := grabDomainDecoder{
 			reader: domainReader,
+		}
+		return &d
+	} else if mode == "json" {
+		lineReader := bufio.NewReader(reader)
+		d := JSONgrabTargetDecoder{
+			reader: lineReader,
 		}
 		return &d
 	} else {
@@ -208,11 +239,11 @@ func containsPort(host string) bool {
 	return strings.LastIndex(host, ":") > strings.LastIndex(host, "]")
 }
 
-func makeHTTPGrabber(config *Config, grabData *GrabData) func(string, string, string) error {
-	g := func(urlHost, endpoint, httpHost string) (err error) {
+func makeHTTPGrabber(config *Config, grabData *GrabData) func(string, string, string, string) error {
+	g := func(urlHost, endpoint, httpHost string, httpURL string) (err error) {
 
 		var tlsConfig *ztls.Config
-		if config.TLS {
+		if config.TLS || strings.HasPrefix(httpURL, "https://") {
 			tlsConfig = makeTLSConfig(config, urlHost)
 		}
 
@@ -258,7 +289,9 @@ func makeHTTPGrabber(config *Config, grabData *GrabData) func(string, string, st
 
 		var fullURL string
 
-		if config.TLS {
+		if httpURL != "" {
+			fullURL = httpURL
+		} else if config.TLS {
 			fullURL = "https://" + urlHost + endpoint
 		} else {
 			fullURL = "http://" + urlHost + endpoint
@@ -551,13 +584,20 @@ func makeGrabber(config *Config) func(*Conn) error {
 }
 
 func GrabBanner(config *Config, target *GrabTarget) *Grab {
+	var rhost string
 
-	if len(config.HTTP.Endpoint) == 0 {
+	if len(config.HTTP.Endpoint) == 0 && len(target.URL) == 0 {
 		dial := makeDialer(config)
 		grabber := makeGrabber(config)
 		port := strconv.FormatUint(uint64(config.Port), 10)
 		addr := target.Addr.String()
-		rhost := net.JoinHostPort(addr, port)
+
+		if target.Addr == nil || target.Addr.String() == "" {
+			rhost = net.JoinHostPort(target.Domain, port)
+		} else {
+			rhost = net.JoinHostPort(target.Addr.String(), port)
+		}
+
 		t := time.Now()
 		conn, dialErr := dial(rhost)
 		if target.Domain != "" {
@@ -589,14 +629,14 @@ func GrabBanner(config *Config, target *GrabTarget) *Grab {
 		httpGrabber := makeHTTPGrabber(config, &grabData)
 		port := strconv.FormatUint(uint64(config.Port), 10)
 		t := time.Now()
-		var rhost string
-		if config.LookupDomain {
-			rhost = target.Domain
+
+		if target.Addr == nil || target.Addr.String() == "" {
+			rhost = net.JoinHostPort(target.Domain, port)
 		} else {
 			rhost = net.JoinHostPort(target.Addr.String(), port)
 		}
 
-		err := httpGrabber(rhost, config.HTTP.Endpoint, target.Domain)
+		err := httpGrabber(rhost, config.HTTP.Endpoint, target.Domain, target.URL)
 
 		return &Grab{
 			IP:     target.Addr,

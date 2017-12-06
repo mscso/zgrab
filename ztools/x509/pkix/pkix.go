@@ -7,10 +7,12 @@
 package pkix
 
 import (
-	"encoding/asn1"
+	// "encoding/asn1"
 	"math/big"
 	"strings"
 	"time"
+
+	"github.com/zmap/zgrab/ztools/x509/asn1"
 )
 
 // AlgorithmIdentifier represents the ASN.1 structure of the same name. See RFC

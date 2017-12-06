@@ -5,7 +5,7 @@
 package x509
 
 import (
-	"encoding/asn1"
+	// "encoding/asn1"
 	"encoding/hex"
 	"encoding/json"
 	"net"
@@ -14,6 +14,8 @@ import (
 
 	"github.com/zmap/zgrab/ztools/x509/pkix"
 	"github.com/zmap/zgrab/ztools/zct"
+
+	"github.com/zmap/zgrab/ztools/x509/asn1"
 )
 
 var (

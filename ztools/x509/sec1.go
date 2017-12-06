@@ -7,10 +7,12 @@ package x509
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
-	"encoding/asn1"
+	// "encoding/asn1"
 	"errors"
 	"fmt"
 	"math/big"
+
+	"github.com/zmap/zgrab/ztools/x509/asn1"
 )
 
 const ecPrivKeyVersion = 1

@@ -19,7 +19,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rsa"
-	"encoding/asn1"
+	// "encoding/asn1"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -32,6 +32,8 @@ import (
 	"github.com/zmap/zgrab/ztools/x509/pkix"
 	"github.com/zmap/zgrab/ztools/zct"
 	//	"github.com/google/certificate-transparency/go"
+
+	"github.com/zmap/zgrab/ztools/x509/asn1"
 )
 
 // pkixPublicKey reflects a PKIX public key structure. See SubjectPublicKeyInfo
@@ -157,6 +159,7 @@ type publicKeyInfo struct {
 }
 
 type AugmentedECDSA struct {
+	CurveOID asn1.ObjectIdentifier
 	Pub *ecdsa.PublicKey
 	Raw asn1.BitString
 }
@@ -374,7 +377,10 @@ func getMaxCertValidationLevel(oids []asn1.ObjectIdentifier) CertValidationLevel
 //   iso(1) identified-organization(3) certicom(132) curve(0) 35 }
 //
 // NB: secp256r1 is equivalent to prime256v1
+//
+// ansip256k1 == 1.3.132.0.10
 var (
+	oidNamedCurveAnsiP256K1 = asn1.ObjectIdentifier{1, 3, 132, 0, 10} //unsupported in go elliptic
 	oidNamedCurveP224 = asn1.ObjectIdentifier{1, 3, 132, 0, 33}
 	oidNamedCurveP256 = asn1.ObjectIdentifier{1, 2, 840, 10045, 3, 1, 7}
 	oidNamedCurveP384 = asn1.ObjectIdentifier{1, 3, 132, 0, 34}
@@ -935,12 +941,13 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{
 			return nil, err
 		}
 
-		if p.N.Sign() <= 0 {
-			return nil, errors.New("x509: RSA modulus is not a positive number")
-		}
-		if p.E <= 0 {
-			return nil, errors.New("x509: RSA public exponent is not a positive number")
-		}
+		// patched for coverage increase of in-the-wild certs
+		// if p.N.Sign() <= 0 {
+		// 	return nil, errors.New("x509: RSA modulus is not a positive number")
+		// }
+		// if p.E <= 0 {
+		// 	return nil, errors.New("x509: RSA public exponent is not a positive number")
+		// }
 
 		pub := &rsa.PublicKey{
 			E: p.E,
@@ -979,20 +986,24 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{
 			return nil, err
 		}
 		namedCurve := namedCurveFromOID(*namedCurveOID)
+		var key *ecdsa.PublicKey
+
 		if namedCurve == nil {
-			return nil, errors.New("x509: unsupported elliptic curve")
-		}
-		x, y := elliptic.Unmarshal(namedCurve, asn1Data)
-		if x == nil {
-			return nil, errors.New("x509: failed to unmarshal elliptic curve point")
-		}
-		key := &ecdsa.PublicKey{
-			Curve: namedCurve,
-			X:     x,
-			Y:     y,
+			// return nil, errors.New(fmt.Sprintf("x509: unsupported elliptic curve %v", namedCurveOID))
+		} else {
+			x, y := elliptic.Unmarshal(namedCurve, asn1Data)
+			if x == nil {
+				return nil, errors.New("x509: failed to unmarshal elliptic curve point")
+			}
+			key = &ecdsa.PublicKey{
+				Curve: namedCurve,
+				X:     x,
+				Y:     y,
+			}
 		}
 
 		pub := &AugmentedECDSA{
+			CurveOID: *namedCurveOID,
 			Pub: key,
 			Raw: keyData.PublicKey,
 		}
@@ -1070,7 +1081,8 @@ func parseGeneralNames(value []byte) (otherNames []pkix.OtherName, dnsNames, ema
 			case net.IPv4len, net.IPv6len:
 				ipAddresses = append(ipAddresses, v.Bytes)
 			default:
-				err = errors.New("x509: certificate contained IP address of length " + strconv.Itoa(len(v.Bytes)))
+				// patched for coverage increase of in-the-wild certs
+				// err = errors.New("x509: certificate contained IP address of length " + strconv.Itoa(len(v.Bytes)))
 				return
 			}
 		case 8:

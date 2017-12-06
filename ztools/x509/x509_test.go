@@ -13,7 +13,7 @@ import (
 	"crypto/rsa"
 	_ "crypto/sha256"
 	_ "crypto/sha512"
-	"encoding/asn1"
+	// "encoding/asn1"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/pem"
@@ -26,6 +26,8 @@ import (
 	"time"
 
 	"github.com/zmap/zgrab/ztools/x509/pkix"
+
+	"github.com/zmap/zgrab/ztools/x509/asn1"
 )
 
 func TestParsePKCS1PrivateKey(t *testing.T) {

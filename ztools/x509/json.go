@@ -8,7 +8,7 @@ import (
 	"crypto/dsa"
 	"crypto/ecdsa"
 	"crypto/rsa"
-	"encoding/asn1"
+	// "encoding/asn1"
 	"encoding/json"
 
 	"strings"
@@ -17,6 +17,8 @@ import (
 	"github.com/asaskevich/govalidator"
 	"github.com/zmap/zgrab/ztools/keys"
 	"github.com/zmap/zgrab/ztools/x509/pkix"
+
+	"github.com/zmap/zgrab/ztools/x509/asn1"
 )
 
 type auxKeyUsage struct {
@@ -294,16 +296,21 @@ func (c *Certificate) MarshalJSON() ([]byte, error) {
 	case *AugmentedECDSA:
 		pub := key.Pub
 		keyMap["pub"] = key.Raw.Bytes
-		params := pub.Params()
-		keyMap["p"] = params.P.Bytes()
-		keyMap["n"] = params.N.Bytes()
-		keyMap["b"] = params.B.Bytes()
-		keyMap["gx"] = params.Gx.Bytes()
-		keyMap["gy"] = params.Gy.Bytes()
-		keyMap["x"] = pub.X.Bytes()
-		keyMap["y"] = pub.Y.Bytes()
-		keyMap["curve"] = pub.Curve.Params().Name
-		keyMap["length"] = pub.Curve.Params().BitSize
+		if pub != nil {
+			params := pub.Params()
+			keyMap["p"] = params.P.Bytes()
+			keyMap["n"] = params.N.Bytes()
+			keyMap["b"] = params.B.Bytes()
+			keyMap["gx"] = params.Gx.Bytes()
+			keyMap["gy"] = params.Gy.Bytes()
+			keyMap["x"] = pub.X.Bytes()
+			keyMap["y"] = pub.Y.Bytes()
+			keyMap["curve"] = pub.Curve.Params().Name
+			keyMap["length"] = pub.Curve.Params().BitSize
+		} else {
+			keyMap["curve"] = "unsupported_curve"
+			keyMap["oid"] = key.CurveOID.String()
+		}
 
 		//keyMap["asn1_oid"] = c.SignatureAlgorithmOID.String()
 

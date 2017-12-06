@@ -6,9 +6,11 @@ package x509
 
 import (
 	"crypto/rsa"
-	"encoding/asn1"
+	// "encoding/asn1"
 	"errors"
 	"math/big"
+
+	"github.com/zmap/zgrab/ztools/x509/asn1"
 )
 
 // pkcs1PrivateKey is a structure which mirrors the PKCS#1 ASN.1 for an RSA private key.
